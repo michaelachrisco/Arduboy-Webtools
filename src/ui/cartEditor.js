@@ -21,13 +21,15 @@ import {
   readArduboyFile, writeArduboyFile,
   screenToImageData, imageDataToScreen, loadImageFile,
   SCREEN_WIDTH, SCREEN_HEIGHT, FX_META_MAX_LENGTH, FX_PAGESIZE,
-  FX_SAVE_ALIGNMENT, FLASH_PAGESIZE, FX_TITLE_SIZE,
+  FX_SAVE_ALIGNMENT, FLASH_PAGESIZE, FX_TITLE_SIZE, FX_FULL_CART_SIZE,
   encodeString,
   writeFx, backupFx, scanFx,
+  patchSSD1309,
 } from '../core/index.js';
 import JSZip from 'jszip';
 import { readFileAsArrayBuffer, downloadBlob } from './files.js';
 import { showToast } from './toast.js';
+import { showConfirm } from './modal.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -93,6 +95,7 @@ export class CartEditor {
     this._bindToolbar();
     this._bindSearch();
     this._bindExternalDrop();
+    this._bindDetailDrop();
 
     // Confirm delete checkbox
     const confirmCb = document.getElementById('cart-confirm-delete');
@@ -162,35 +165,283 @@ export class CartEditor {
   }
 
   /**
+   * Toggle the elevated drag-hover state on both panels.
+   * Called from global drag listeners when the cart overlay is shown / hidden.
+   */
+  setDragHover(active) {
+    const container = this._slotList?.closest('.cart-slot-list-container');
+    const panel = this._detailPanel;
+    if (active) {
+      container?.classList.add('cart-drag-hover');
+      panel?.classList.add('cart-drag-hover');
+    } else {
+      container?.classList.remove('cart-drag-hover');
+      panel?.classList.remove('cart-drag-hover');
+    }
+  }
+
+  /**
    * Allow dropping .arduboy/.hex/.bin files onto the slot list from outside.
+   * Shows an insert-line indicator at the hovered position.
    */
   _bindExternalDrop() {
     const list = this._slotList;
-    if (!list) return;
+    const container = list?.closest('.cart-slot-list-container');
+    if (!list || !container) return;
 
-    list.addEventListener('dragover', (e) => {
-      if (e.dataTransfer?.types?.includes('Files')) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
-        list.classList.add('cart-drop-active');
+    let listDragCounter = 0;
+    let _extDropIndex = -1;  // where to insert (updated on dragover)
+
+    const clearIndicators = () => {
+      list.querySelectorAll('.slot-item').forEach((el) => {
+        el.classList.remove('drag-above', 'drag-below');
+      });
+      _extDropIndex = -1;
+    };
+
+    const updateInsertLine = (e) => {
+      const items = [...list.querySelectorAll('.slot-item')];
+      if (items.length === 0) { _extDropIndex = -1; return; }
+
+      // Find the slot item closest to the cursor
+      let best = null;
+      let bestDist = Infinity;
+      for (const el of items) {
+        const rect = el.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const dist = Math.abs(e.clientY - midY);
+        if (dist < bestDist) { bestDist = dist; best = el; }
+      }
+      if (!best) return;
+
+      // Clear old indicators
+      items.forEach((el) => el.classList.remove('drag-above', 'drag-below'));
+
+      const rect = best.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      const idx = parseInt(best.dataset.index, 10);
+
+      if (e.clientY < midY) {
+        best.classList.add('drag-above');
+        _extDropIndex = idx;
+      } else {
+        best.classList.add('drag-below');
+        _extDropIndex = idx + 1;
+      }
+      // Never insert before slot 0 (bootloader)
+      if (_extDropIndex < 1) _extDropIndex = 1;
+    };
+
+    container.addEventListener('dragover', (e) => {
+      // Only act on external file drags (not internal slot reorder)
+      if (!e.dataTransfer?.types?.includes('Files')) return;
+      if (this._dragSourceIndex >= 0) return;  // internal reorder in progress
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      updateInsertLine(e);
+    });
+
+    container.addEventListener('dragenter', (e) => {
+      if (!e.dataTransfer?.types?.includes('Files')) return;
+      if (this._dragSourceIndex >= 0) return;
+      listDragCounter++;
+    });
+
+    container.addEventListener('dragleave', () => {
+      listDragCounter--;
+      if (listDragCounter <= 0) {
+        listDragCounter = 0;
+        clearIndicators();
       }
     });
 
-    list.addEventListener('dragleave', () => {
-      list.classList.remove('cart-drop-active');
-    });
-
-    list.addEventListener('drop', async (e) => {
+    container.addEventListener('drop', async (e) => {
+      // Only handle external file drops, not internal reorder
+      if (this._dragSourceIndex >= 0) return;
       e.preventDefault();
-      e.stopPropagation(); // prevent panel-level drop handler from also firing
-      list.classList.remove('cart-drop-active');
+      e.stopPropagation();
+      const insertAt = _extDropIndex;
+      listDragCounter = 0;
+      clearIndicators();
       const files = e.dataTransfer?.files;
       if (!files) return;
+      if (!this.slots || this.slots.length === 0) {
+        showToast('No cart loaded', 'warning');
+      }
       for (const file of files) {
         if (file.name.endsWith('.arduboy') || file.name.endsWith('.hex')) {
-          await this.addGameFromFile(file);
+          await this.addGameFromFile(file, insertAt >= 1 ? insertAt : undefined);
+        } else {
+          const ext = file.name.split('.').pop()?.toLowerCase();
+          if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'bin'].includes(ext)) {
+            showToast(`Drop ${file.name} onto a slot's detail panel instead`, 'warning');
+          } else {
+            showToast(`Unsupported file type: ${file.name}`, 'warning');
+          }
         }
       }
+    });
+  }
+
+  /**
+   * Set up the detail panel as a drag-and-drop target.
+   * Accepts: .png/image → replace image, .hex → replace program, .bin → FX data or save.
+   */
+  _bindDetailDrop() {
+    const panel = this._detailPanel;
+    if (!panel) return;
+
+    let detailDragCounter = 0;
+
+    panel.addEventListener('dragover', (e) => {
+      if (!e.dataTransfer?.types?.includes('Files')) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    });
+
+    panel.addEventListener('dragenter', (e) => {
+      if (!e.dataTransfer?.types?.includes('Files')) return;
+      e.preventDefault();
+      detailDragCounter++;
+      panel.classList.add('cart-detail-drop-active');
+    });
+
+    panel.addEventListener('dragleave', () => {
+      detailDragCounter--;
+      if (detailDragCounter <= 0) {
+        detailDragCounter = 0;
+        panel.classList.remove('cart-detail-drop-active');
+      }
+    });
+
+    panel.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      detailDragCounter = 0;
+      panel.classList.remove('cart-detail-drop-active');
+
+      if (!this.slots || this.slots.length === 0) {
+        showToast('No cart loaded', 'warning');
+        return;
+      }
+      if (this.selectedIndex < 0 || this.selectedIndex >= this.slots.length) {
+        showToast('Select a slot first to drop files onto', 'warning');
+        return;
+      }
+
+      const slot = this.slots[this.selectedIndex];
+      const files = e.dataTransfer?.files;
+      if (!files || files.length === 0) return;
+
+      const file = files[0];
+      const name = file.name.toLowerCase();
+
+      // Image files → replace slot image
+      if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg') ||
+          name.endsWith('.gif') || name.endsWith('.bmp') || name.endsWith('.webp')) {
+        const hasExisting = slot.imageRaw && slot.imageRaw.some((b) => b !== 0);
+        if (this._confirmDelete && hasExisting && !await showConfirm('Replace the current slot image?')) return;
+        await this._setSlotImage(slot, file);
+        this.render();
+        return;
+      }
+
+      // .hex → replace program data
+      if (name.endsWith('.hex')) {
+        if (slot.isCategory) {
+          showToast('Cannot set program data on a category slot', 'warning');
+          return;
+        }
+        const hasProgram = slot.programRaw.length > 0;
+        if (this._confirmDelete && hasProgram && !await showConfirm('Replace the current program data?')) return;
+        await this._setSlotProgram(slot, file);
+        this.render();
+        return;
+      }
+
+      // .bin → determine if FX data or FX save based on file size
+      if (name.endsWith('.bin')) {
+        if (slot.isCategory) {
+          showToast('Cannot set binary data on a category slot', 'warning');
+          return;
+        }
+
+        const fileSize = file.size;
+
+        // Too large for anything
+        if (fileSize > FX_FULL_CART_SIZE) {
+          showToast(`File too large (${(fileSize / 1024 / 1024).toFixed(1)} MB) — max FX data is 16 MB`, 'error');
+          return;
+        }
+
+        let choice;
+
+        if (fileSize > FX_SAVE_ALIGNMENT) {
+          // Larger than save alignment (4 KB) — must be FX data
+          choice = 'data';
+          const hasData = slot.dataRaw && slot.dataRaw.length > 0;
+          if (this._confirmDelete && hasData && !await showConfirm('Replace the current FX data?')) return;
+          showToast(`Auto-detected as FX data (${fileSize >= 1024 ? (fileSize / 1024).toFixed(1) + ' KB' : fileSize + ' B'})`, 'info');
+        } else {
+          // Could be either — ask the user
+          choice = await showConfirm('What is this .bin file?', {
+            title: 'Import Binary',
+            buttons: [
+              { label: 'FX Data', value: 'data', className: 'btn btn-primary', default: true },
+              { label: 'FX Save', value: 'save', className: 'btn btn-outline' },
+              { label: 'Cancel', value: null, className: 'btn btn-secondary' },
+            ],
+          });
+          if (!choice) return;
+
+          // Check for existing data in the chosen slot
+          if (this._confirmDelete) {
+            if (choice === 'save' && slot.saveRaw && slot.saveRaw.length > 0) {
+              if (!await showConfirm('Replace the current FX save data?')) return;
+            } else if (choice === 'data' && slot.dataRaw && slot.dataRaw.length > 0) {
+              if (!await showConfirm('Replace the current FX data?')) return;
+            }
+          }
+        }
+
+        const buffer = await readFileAsArrayBuffer(file);
+        const binData = new Uint8Array(buffer);
+        if (choice === 'save') {
+          slot.saveRaw = binData;
+          this._markDirty();
+          this.render();
+          showToast('FX save set', 'success');
+        } else {
+          slot.dataRaw = binData;
+          this._markDirty();
+          this.render();
+          showToast('FX data set', 'success');
+        }
+        return;
+      }
+
+      // .arduboy → replace entire slot contents
+      if (name.endsWith('.arduboy')) {
+        const hasProgram = slot.programRaw.length > 0;
+        if (this._confirmDelete && hasProgram && !await showConfirm('Replace this slot with the dropped .arduboy file?')) return;
+        try {
+          const newSlot = await this._slotFromArduboyFile(file);
+          // Copy new slot data into existing slot
+          slot.programRaw = newSlot.programRaw;
+          slot.dataRaw = newSlot.dataRaw;
+          slot.saveRaw = newSlot.saveRaw;
+          slot.imageRaw = newSlot.imageRaw;
+          slot.meta = newSlot.meta;
+          this._markDirty();
+          this.render();
+          showToast(`Slot updated from ${file.name}`, 'success');
+        } catch (err) {
+          showToast(`Failed to load: ${err.message}`, 'error');
+        }
+        return;
+      }
+
+      showToast(`Unsupported file type: ${file.name}`, 'warning');
     });
   }
 
@@ -235,8 +486,8 @@ export class CartEditor {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /** Start a fresh empty cart with bootloader image + one default category. */
-  newCart() {
-    if (this.dirty && !confirm('Discard unsaved changes and create a new cart?')) return;
+  async newCart() {
+    if (this.dirty && !await showConfirm('Discard unsaved changes and create a new cart?')) return;
 
     this.slots = [
       // Slot 0: Bootloader image (category 0) — the Cathy3K bootloader
@@ -257,7 +508,7 @@ export class CartEditor {
    * @param {File} file
    */
   async openBinFile(file) {
-    if (this.dirty && !confirm('Discard unsaved changes and open a new cart?')) return;
+    if (this.dirty && !await showConfirm('Discard unsaved changes and open a new cart?')) return;
 
     try {
       const buffer = await readFileAsArrayBuffer(file);
@@ -287,6 +538,11 @@ export class CartEditor {
       return;
     }
 
+    if (this.slots.length < 2 || !this.slots[1].isCategory) {
+      showToast('Slot 2 must be a Category', 'error');
+      return;
+    }
+
     try {
       const binary = await compileFxCart(this.slots);
       downloadBlob(binary, this.filename || 'cart.bin');
@@ -307,7 +563,7 @@ export class CartEditor {
    * Inserts after the currently selected slot (or at end).
    * @param {File} file
    */
-  async addGameFromFile(file) {
+  async addGameFromFile(file, insertAt) {
     try {
       let slot;
 
@@ -328,11 +584,12 @@ export class CartEditor {
         );
       }
 
-      // Insert before selected, or at end. Never insert before slot 0 (bootloader image).
-      let insertAt = this.selectedIndex >= 1 ? this.selectedIndex : this.slots.length;
-      if (insertAt < 1) insertAt = 1;
-      this.slots.splice(insertAt, 0, slot);
-      this.selectedIndex = insertAt;
+      // Use explicit insertAt if provided, else insert before selected, or at end.
+      let idx = (insertAt != null && insertAt >= 1) ? insertAt : (this.selectedIndex >= 1 ? this.selectedIndex : this.slots.length);
+      if (idx < 1) idx = 1;
+      if (idx > this.slots.length) idx = this.slots.length;
+      this.slots.splice(idx, 0, slot);
+      this.selectedIndex = idx;
       this._markDirty();
       this.render();
       showToast(`Added: ${slot.meta.title || file.name}`, 'success');
@@ -364,7 +621,7 @@ export class CartEditor {
   }
 
   /** Delete the currently selected slot. */
-  deleteSelected() {
+  async deleteSelected() {
     if (this.selectedIndex < 0 || this.selectedIndex >= this.slots.length) {
       showToast('No slot selected', 'warning');
       return;
@@ -378,7 +635,7 @@ export class CartEditor {
 
     const slot = this.slots[this.selectedIndex];
     const label = slot.isCategory ? 'category' : 'game';
-    if (this._confirmDelete && !confirm(`Delete this ${label}: "${slot.meta.title || '(untitled)'}"?`)) return;
+    if (this._confirmDelete && !await showConfirm(`Delete this ${label}: "${slot.meta.title || '(untitled)'}"?`)) return;
 
     this.slots.splice(this.selectedIndex, 1);
     if (this.selectedIndex >= this.slots.length) {
@@ -389,7 +646,7 @@ export class CartEditor {
   }
 
   /** Delete the entire category (header + all games) that the selected slot belongs to. */
-  deleteCategory() {
+  async deleteCategory() {
     if (this.selectedIndex < 0 || this.selectedIndex >= this.slots.length) {
       showToast('No slot selected', 'warning');
       return;
@@ -411,7 +668,7 @@ export class CartEditor {
       ? `Delete category "${catTitle}" and its ${count} game${count !== 1 ? 's' : ''}?`
       : `Delete empty category "${catTitle}"?`;
 
-    if (!confirm(msg)) return;
+    if (this._confirmDelete && !await showConfirm(msg)) return;
 
     this.slots.splice(block.start, block.end - block.start);
     this.selectedIndex = Math.min(block.start, this.slots.length - 1);
@@ -540,7 +797,7 @@ export class CartEditor {
       showToast('Device connection not available', 'error');
       return;
     }
-    if (this.dirty && !confirm('Discard unsaved changes and load from device?')) return;
+    if (this.dirty && !await showConfirm('Discard unsaved changes and load from device?')) return;
 
     const proto = await this._ensureDevice();
     if (!proto) return;
@@ -593,6 +850,12 @@ export class CartEditor {
       showToast('No cart data to write', 'warning');
       return;
     }
+
+    if (this.slots.length < 2 || !this.slots[1].isCategory) {
+      showToast('Cart must have a category as the first slot after the bootloader image', 'error');
+      return;
+    }
+
     if (!this._ensureDevice) {
       showToast('Device connection not available', 'error');
       return;
@@ -601,11 +864,24 @@ export class CartEditor {
     const proto = await this._ensureDevice();
     if (!proto) return;
 
+    const ssd1309 = document.getElementById('cart-patch-ssd1309')?.checked ?? false;
+
     try {
       this._progress?.show('Writing Cart to Device');
       this._progress?.update(0, 'Compiling cart...');
 
       const binary = await compileFxCart(this.slots);
+
+      // Apply SSD1309 display patch to all games in the compiled cart
+      if (ssd1309) {
+        this._progress?.update(2, 'Applying SSD1309 patch...');
+        const patchResult = patchSSD1309(binary);
+        if (patchResult.success) {
+          showToast(patchResult.message, 'info');
+        } else {
+          showToast(patchResult.message, 'warning');
+        }
+      }
 
       this._progress?.update(5, 'Writing to FX flash...');
       await writeFx(proto, binary, 0, {
@@ -987,9 +1263,10 @@ export class CartEditor {
       <div class="cart-detail-image-section">
         <canvas id="cart-detail-canvas" class="cart-detail-canvas" width="${SCREEN_WIDTH}" height="${SCREEN_HEIGHT}"></canvas>
         <div class="cart-detail-image-actions">
-          <button class="btn btn-sm btn-secondary" id="btn-detail-image">Change Image</button>
+          <button class="btn btn-sm btn-secondary" id="btn-detail-image">Change</button>
           <input type="file" id="detail-image-file" accept="image/*" class="file-input">
-          <button class="btn btn-sm btn-outline" id="btn-detail-clear-image">Clear Image</button>
+          <button class="btn btn-sm btn-outline" id="btn-detail-save-image">Save</button>
+          <button class="btn btn-sm btn-danger" id="btn-detail-clear-image">Clear</button>
         </div>
       </div>`;
 
@@ -1013,9 +1290,10 @@ export class CartEditor {
       <div class="cart-detail-image-section">
         <canvas id="cart-detail-canvas" class="cart-detail-canvas" width="${SCREEN_WIDTH}" height="${SCREEN_HEIGHT}"></canvas>
         <div class="cart-detail-image-actions">
-          <button class="btn btn-sm btn-secondary" id="btn-detail-image">Change Image</button>
+          <button class="btn btn-sm btn-secondary" id="btn-detail-image">Change</button>
           <input type="file" id="detail-image-file" accept="image/*" class="file-input">
-          <button class="btn btn-sm btn-outline" id="btn-detail-clear-image">Clear Image</button>
+          <button class="btn btn-sm btn-outline" id="btn-detail-save-image">Save</button>
+          <button class="btn btn-sm btn-danger" id="btn-detail-clear-image">Clear</button>
         </div>
       </div>
 
@@ -1050,9 +1328,10 @@ export class CartEditor {
       <div class="cart-detail-image-section">
         <canvas id="cart-detail-canvas" class="cart-detail-canvas" width="${SCREEN_WIDTH}" height="${SCREEN_HEIGHT}"></canvas>
         <div class="cart-detail-image-actions">
-          <button class="btn btn-sm btn-secondary" id="btn-detail-image">Change Image</button>
+          <button class="btn btn-sm btn-secondary" id="btn-detail-image">Change</button>
           <input type="file" id="detail-image-file" accept="image/*" class="file-input">
-          <button class="btn btn-sm btn-outline" id="btn-detail-clear-image">Clear Image</button>
+          <button class="btn btn-sm btn-outline" id="btn-detail-save-image">Save</button>
+          <button class="btn btn-sm btn-danger" id="btn-detail-clear-image">Clear</button>
         </div>
       </div>
 
@@ -1124,11 +1403,27 @@ export class CartEditor {
         this.render();
       }
     });
-    panel.querySelector('#btn-detail-clear-image')?.addEventListener('click', () => {
-      if (!confirm('Clear this cart image?')) return;
+    panel.querySelector('#btn-detail-clear-image')?.addEventListener('click', async () => {
+      if (this._confirmDelete && !await showConfirm('Clear this cart image?')) return;
       slot.imageRaw = new Uint8Array(FX_TITLE_SIZE);
       this._markDirty();
       this.render();
+    });
+
+    // Image save as PNG
+    panel.querySelector('#btn-detail-save-image')?.addEventListener('click', async () => {
+      const hasImage = slot.imageRaw && slot.imageRaw.some((b) => b !== 0);
+      if (!hasImage) {
+        showToast('No image to save', 'warning');
+        return;
+      }
+      const imgData = screenToImageData(slot.imageRaw);
+      const offscreen = new OffscreenCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
+      const ctx = offscreen.getContext('2d');
+      ctx.putImageData(imgData, 0, 0);
+      const blob = await offscreen.convertToBlob({ type: 'image/png' });
+      const safeName = (slot.meta.title || 'image').replace(/[^a-zA-Z0-9_-]/g, '_');
+      downloadBlob(blob, `${safeName}.png`, 'image/png');
     });
 
     // Metadata fields — update on input

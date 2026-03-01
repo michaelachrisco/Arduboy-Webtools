@@ -14,6 +14,7 @@ import {
 } from '../core/index.js';
 import { readFileAsArrayBuffer, downloadBlob } from './files.js';
 import { showToast } from './toast.js';
+import { showConfirm } from './modal.js';
 
 const ALLOWED_DEVICES = ['Arduboy', 'ArduboyFX', 'ArduboyMini'];
 const LICENSE_HELP_URL = 'https://choosealicense.com/';
@@ -146,8 +147,8 @@ export class PackageEditor {
     }
   }
 
-  _resetPackage() {
-    if (!confirm('Reset all package editor fields?')) return;
+  async _resetPackage() {
+    if (!await showConfirm('Reset all package editor fields?')) return;
 
     // Clear metadata fields
     const fields = ['pkg-title', 'pkg-version', 'pkg-author', 'pkg-description',
@@ -420,7 +421,7 @@ export class PackageEditor {
 
         <div class="pkg-binary-files">
           <div class="pkg-binary-file-row">
-            <span class="pkg-binary-file-label">.hex Program</span>
+            <span class="pkg-binary-file-label">Program</span>
             <span class="pkg-binary-file-size">${hexSize ? this._formatBytes(hexSize) : 'None'}</span>
             <button class="btn btn-sm btn-secondary" id="btn-pkg-binary-hex">Set .hex</button>
             <input type="file" id="pkg-binary-hex-file" accept=".hex" class="file-input">

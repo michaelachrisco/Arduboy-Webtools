@@ -14,6 +14,7 @@ import './ui/styles/components.css';
 import { TabController } from './ui/tabs.js';
 import { ProgressController } from './ui/progress.js';
 import { showToast } from './ui/toast.js';
+import { showConfirm } from './ui/modal.js';
 import { readFileAsArrayBuffer, readFileAsText, downloadBlob, wireFileInput } from './ui/files.js';
 import { CartEditor } from './ui/cartEditor.js';
 import { PackageEditor } from './ui/packageEditor.js';
@@ -290,7 +291,11 @@ async function handleSketchUpload() {
       let sketchInput;
       if (ssd1309) {
         const parsed = parseIntelHex(text);
-        sketchInput = patchSSD1309(parsed.data);
+        const patchResult = patchSSD1309(parsed.data);
+        if (!patchResult.success) {
+          showToast(patchResult.message, 'warning');
+        }
+        sketchInput = parsed.data;
       } else {
         sketchInput = text;
       }
@@ -389,7 +394,11 @@ async function handleArduboyUpload(proto, data, filename, verify, ssd1309, onPro
   let sketchInput = hexRaw;
   if (ssd1309) {
     const parsed = parseIntelHex(hexRaw);
-    sketchInput = patchSSD1309(parsed.data);
+    const patchResult = patchSSD1309(parsed.data);
+    if (!patchResult.success) {
+      showToast(patchResult.message, 'warning');
+    }
+    sketchInput = parsed.data;
   }
 
   const result = await uploadSketch(proto, sketchInput, {
@@ -429,7 +438,7 @@ async function handleSketchBackup() {
 }
 
 async function handleSketchErase() {
-  if (!confirm('This will erase the game on your Arduboy. Continue?')) return;
+  if (!await showConfirm('This will erase the game on your Arduboy. Continue?')) return;
 
   const proto = await ensureDevice();
   if (!proto) return;
@@ -466,6 +475,18 @@ async function handleFxWrite() {
     const buffer = await readFileAsArrayBuffer(file);
     const data = new Uint8Array(buffer);
     const verify = $('#fx-verify')?.checked ?? false;
+    const ssd1309 = $('#fx-patch-ssd1309')?.checked ?? false;
+
+    // Apply SSD1309 display patch to all games in the flash image
+    if (ssd1309) {
+      progress.update(0, 'Applying SSD1309 patch...');
+      const patchResult = patchSSD1309(data);
+      if (patchResult.success) {
+        showToast(patchResult.message, 'info');
+      } else {
+        showToast(patchResult.message, 'warning');
+      }
+    }
 
     await writeFx(proto, data, 0, {
       verify,
@@ -613,7 +634,7 @@ async function handleEepromBackup() {
 }
 
 async function handleEepromErase() {
-  if (!confirm('This will erase all game save data (EEPROM → 0xFF). Continue?')) return;
+  if (!await showConfirm('This will erase all game save data (EEPROM → 0xFF). Continue?')) return;
 
   const proto = await ensureDevice();
   if (!proto) return;
@@ -665,6 +686,17 @@ dropOverlay.innerHTML = `
     <span class="drop-overlay-hint">.hex .bin .arduboy</span>
   </div>`;
 document.getElementById('app').appendChild(dropOverlay);
+
+// Build cart-specific drop overlay — just a backdrop + .bin hint banner.
+// The real slot list and detail panel float ABOVE this and serve as their own drop targets.
+const cartDropOverlay = document.createElement('div');
+cartDropOverlay.className = 'cart-drop-overlay';
+cartDropOverlay.innerHTML = `
+  <div class="cart-drop-backdrop"></div>
+  <div class="cart-drop-bin-banner">
+    <span>&#x1F4BE; Drop <strong>.bin</strong> here to load entire cart</span>
+  </div>`;
+document.getElementById('app').appendChild(cartDropOverlay);
 
 function resolveDropTarget(fileName) {
   const name = fileName.toLowerCase();
@@ -747,6 +779,8 @@ document.addEventListener('drop', (e) => {
   e.preventDefault();
   _pageDragCounter = 0;
   dropOverlay.classList.remove('active');
+  cartDropOverlay.classList.remove('active');
+  cartEditor.setDragHover(false);
 }, true);
 
 // Also block default on dragover so the drop event fires
@@ -760,7 +794,12 @@ document.addEventListener('dragover', (e) => {
 document.addEventListener('dragenter', (e) => {
   if (!e.dataTransfer?.types?.includes('Files')) return;
   _pageDragCounter++;
-  dropOverlay.classList.add('active');
+  if (tabs.current === 'cart') {
+    cartDropOverlay.classList.add('active');
+    cartEditor.setDragHover(true);
+  } else {
+    dropOverlay.classList.add('active');
+  }
 });
 
 document.addEventListener('dragleave', () => {
@@ -768,6 +807,8 @@ document.addEventListener('dragleave', () => {
   if (_pageDragCounter <= 0) {
     _pageDragCounter = 0;
     dropOverlay.classList.remove('active');
+    cartDropOverlay.classList.remove('active');
+    cartEditor.setDragHover(false);
   }
 });
 

@@ -163,6 +163,9 @@
           <div class="cart-toolbar-group">
             <button id="btn-cart-load-device" class="btn btn-sm btn-secondary" title="Load cart from connected device">Load from Device</button>
             <button id="btn-cart-write-device" class="btn btn-sm btn-primary" title="Write cart to connected device">Write to Device</button>
+            <label class="cart-patch-label" title="Patch all games for SSD1309 displays (replaces charge pump init with NOPs)">
+              <input type="checkbox" id="cart-patch-ssd1309"> SSD1309
+            </label>
           </div>
           <div class="cart-toolbar-separator"></div>
           <div class="cart-toolbar-group">
@@ -194,7 +197,7 @@
             <button id="btn-cart-delete" class="btn btn-sm btn-danger" title="Delete selected slot">Delete</button>
             <button id="btn-cart-delete-category" class="btn btn-sm btn-danger" title="Delete entire category and all its games">Delete Category</button>
             <label class="cart-confirm-delete-label" title="When checked, ask for confirmation before deleting">
-              <input type="checkbox" id="cart-confirm-delete" checked>Confirm
+              <input type="checkbox" id="cart-confirm-delete" checked> Confirm
             </label>
           </div>
         </div>
