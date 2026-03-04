@@ -27,6 +27,7 @@
         <button class="tab-btn" data-panel="cart">Cart Editor</button>
         <button class="tab-btn" data-panel="image">Image</button>
         <button class="tab-btn" data-panel="package">Package</button>
+        <button class="tab-btn" data-panel="music">Music</button>
       </div>
       <div class="navbar-actions">
         <button class="btn-reset" id="btn-reset" disabled title="Reset device into bootloader">
@@ -471,6 +472,190 @@
             </div>
           </div>
 
+        </div>
+      </section>
+
+      <!-- Music Editor Panel -->
+      <section id="panel-music" class="panel">
+        <h2>Music Editor</h2>
+        <p class="panel-description">Create Arduboy music and export as ArduboyTones or ArduboyPlaytune code.</p>
+
+        <!-- Toolbar -->
+        <div class="mus-toolbar">
+          <div class="mus-toolbar-group">
+            <button id="btn-mus-new" class="btn btn-sm btn-secondary" title="New empty song">New</button>
+            <button id="btn-mus-import-midi" class="btn btn-sm btn-secondary" title="Import a MIDI file">Import MIDI</button>
+            <input type="file" id="mus-midi-file" accept=".mid,.midi" class="file-input">
+          </div>
+          <div class="cart-toolbar-separator"></div>
+          <div class="mus-toolbar-group">
+            <label class="mus-toolbar-label" for="mus-target-library">Target:</label>
+            <select id="mus-target-library" class="mus-select">
+              <option value="tones">ArduboyTones (mono)</option>
+              <option value="playtune">ArduboyPlaytune (2-voice)</option>
+            </select>
+          </div>
+          <div class="cart-toolbar-separator"></div>
+          <div class="mus-toolbar-group">
+            <label class="mus-toolbar-label" for="mus-bpm">BPM:</label>
+            <input type="number" id="mus-bpm" class="mus-bpm-input" min="30" max="3000" value="120">
+            <button id="btn-mus-bpm-dec" class="btn btn-sm btn-outline" title="Decrease BPM">−</button>
+            <button id="btn-mus-bpm-inc" class="btn btn-sm btn-outline" title="Increase BPM">+</button>
+            <button id="btn-mus-tempo-half" class="btn btn-sm btn-outline" title="Half tempo">&times;0.5</button>
+            <button id="btn-mus-tempo-075" class="btn btn-sm btn-outline" title="75% tempo">&times;0.75</button>
+            <button id="btn-mus-tempo-125" class="btn btn-sm btn-outline" title="125% tempo">&times;1.25</button>
+            <button id="btn-mus-tempo-double" class="btn btn-sm btn-outline" title="Double tempo">&times;2</button>
+          </div>
+          <div class="cart-toolbar-separator"></div>
+          <div class="mus-toolbar-group">
+            <label class="mus-toolbar-label" for="mus-quantize">Quantize:</label>
+            <select id="mus-quantize" class="mus-select">
+              <option value="0">Off</option>
+              <option value="4">1/4</option>
+              <option value="8" selected>1/8</option>
+              <option value="16">1/16</option>
+              <option value="32">1/32</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Main Editor Area: sidebar + piano roll -->
+        <div class="mus-editor-layout" id="mus-editor-layout">
+          <!-- Left sidebar: voice panel -->
+          <div class="mus-sidebar" id="mus-sidebar">
+            <h4 class="mus-sidebar-title">Voices</h4>
+            <div id="mus-voice-list" class="mus-voice-list"></div>
+
+            <div class="mus-array-name-section">
+              <label class="mus-setting-label" for="mus-array-name">Array Name</label>
+              <input type="text" id="mus-array-name" class="mus-text-input" value="" placeholder="song">
+            </div>
+
+            <div class="mus-loop-section">
+              <label class="checkbox-label">
+                <input type="checkbox" id="mus-loop-enabled"> Enable Loop
+              </label>
+            </div>
+
+            <div class="mus-settings-section">
+              <details>
+                <summary class="mus-accordion-summary">Settings</summary>
+                <div class="mus-settings-content">
+                  <div class="mus-setting-row">
+                    <label class="mus-setting-label" for="mus-velocity-threshold">High Volume Threshold</label>
+                    <div class="mus-slider-row">
+                      <input type="range" id="mus-velocity-threshold" min="0" max="127" value="96" class="mus-slider">
+                      <span id="mus-velocity-threshold-value" class="mus-slider-value">96</span>
+                    </div>
+                  </div>
+                  <div class="mus-setting-row">
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="mus-show-full-range"> Show full range (C1–C10)
+                    </label>
+                  </div>
+                  <div class="mus-setting-row">
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="mus-use-constants" checked> Use NOTE_* constants
+                    </label>
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            <div class="mus-controls-section">
+              <details>
+                <summary class="mus-controls-summary">Controls</summary>
+                <ul class="mus-controls-list">
+                  <li><kbd>Click</kbd> <span class="mus-control-desc">Place a note <em>(Note mode)</em></span></li>
+                  <li><kbd>Right-click</kbd> <span class="mus-control-desc">Delete a note <em>(Note mode)</em></span></li>
+                  <li><kbd>Drag note</kbd> <span class="mus-control-desc">Move a note</span></li>
+                  <li><kbd>Drag edge</kbd> <span class="mus-control-desc">Resize note duration</span></li>
+                  <li><kbd>Shift+Drag</kbd> <span class="mus-control-desc">Box select notes <em>(Note mode)</em></span></li>
+                  <li><kbd>Scroll</kbd> <span class="mus-control-desc">Vertical scroll</span></li>
+                  <li><kbd>Shift+Scroll</kbd> <span class="mus-control-desc">Horizontal scroll</span></li>
+                  <li><kbd>Ctrl+Scroll</kbd> <span class="mus-control-desc">Zoom in/out</span></li>
+                  <li><kbd>Ctrl+A</kbd> <span class="mus-control-desc">Select all notes</span></li>
+                  <li><kbd>Delete</kbd> <span class="mus-control-desc">Delete selected notes; or delete time range &amp; shift (Select mode)</span></li>
+                  <li><kbd>Escape</kbd> <span class="mus-control-desc">Clear selection &amp; time range <em>(Select mode)</em></span></li>
+                  <li><kbd>Space</kbd> <span class="mus-control-desc">Play / Pause</span></li>
+                  <li style="margin-top:6px;font-style:italic;color:var(--color-text-secondary);font-size:10px">Select mode: drag seek bar to mark a time range, then Delete to remove it and close the gap.</li>
+                </ul>
+              </details>
+            </div>
+          </div>
+
+          <!-- Piano Roll Canvas Area -->
+          <div class="mus-pianoroll-container" id="mus-pianoroll-container">
+            <!-- Transport bar -->
+            <div class="mus-transport">
+              <button id="btn-mus-play" class="btn btn-sm btn-primary" title="Play (Space)">&#9654; Play</button>
+              <button id="btn-mus-pause" class="btn btn-sm btn-secondary" title="Pause">&#10074;&#10074;</button>
+              <button id="btn-mus-stop" class="btn btn-sm btn-secondary" title="Stop">&#9632; Stop</button>
+              <span class="mus-transport-separator"></span>
+              <span id="mus-playback-position" class="mus-playback-position">0:00.000</span>
+              <span class="mus-transport-separator"></span>
+              <div class="mus-mode-group">
+                <button id="btn-mus-mode-note" class="mus-mode-btn active" title="Note mode: draw and erase notes (Click / Right-click)">✏ Note</button>
+                <button id="btn-mus-mode-select" class="mus-mode-btn" title="Select mode: box-select, drag, and time-range delete">⬚ Select</button>
+              </div>
+              <label id="mus-select-both-label" class="mus-select-both-label hidden" title="Box selection and time-range selection includes all voices">
+                <input type="checkbox" id="mus-select-both-voices"> Both voices
+              </label>
+              <span class="mus-transport-spacer"></span>
+              <label class="mus-toolbar-label" for="mus-zoom-h">Zoom:</label>
+              <input type="range" id="mus-zoom-h" min="0.25" max="4" step="0.25" value="1" class="mus-zoom-slider" title="Horizontal zoom">
+            </div>
+
+            <!-- Canvas: keyboard + grid -->
+            <canvas id="mus-pianoroll-canvas" class="mus-pianoroll-canvas"></canvas>
+            <!-- Minimap: full-score overview -->
+            <canvas id="mus-minimap-canvas" class="mus-minimap-canvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Vertical resize handle -->
+        <div id="mus-pianoroll-resize-handle" class="mus-pianoroll-resize-handle" title="Drag to resize editor"></div>
+
+        <!-- Generated Code Output -->
+        <div class="action-group" id="mus-export-group">
+          <h3>Generated Code</h3>
+          <button class="icon-btn-copy" id="btn-mus-copy-icon" title="Copy to clipboard" aria-label="Copy code">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+          <div id="mus-export-info" class="img-output-info"></div>
+          <pre id="mus-code-output" class="img-code-block"></pre>
+          <div class="button-row">
+            <button class="btn btn-primary" id="btn-mus-copy">Copy to Clipboard</button>
+            <button class="btn btn-secondary" id="btn-mus-download-h">Download .h</button>
+            <button class="btn btn-secondary" id="btn-mus-download-mid">Download .mid</button>
+          </div>
+        </div>
+
+        <!-- Example Usage -->
+        <div class="action-group" id="mus-usage-group">
+          <h3>Example Usage</h3>
+          <label class="checkbox-label">
+            <input type="checkbox" id="mus-show-complete-sketch"> Show complete Arduboy sketch
+          </label>
+          <button class="icon-btn-copy" id="btn-mus-copy-usage-icon" title="Copy to clipboard" aria-label="Copy example">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+          <pre id="mus-usage-output" class="img-code-block"></pre>
+          <div class="button-row">
+            <button class="btn btn-secondary" id="btn-mus-copy-usage">Copy Example</button>
+          </div>
+        </div>
+
+        <!-- Warnings -->
+        <div class="action-group hidden" id="mus-warnings-group">
+          <h3>Warnings</h3>
+          <ul id="mus-warnings-list" class="mus-warnings-list"></ul>
         </div>
       </section>
     </main>

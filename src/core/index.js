@@ -26,3 +26,6 @@ export { patchSSD1309, patchContrast, patchMicroLed, patchFxPages, patchMenuButt
 
 // Utils
 export * from './utils/binary.js';
+
+// Music
+export * from './music/index.js';

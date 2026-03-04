@@ -2192,3 +2192,603 @@ select:focus, input:focus {
 .icon-btn-copy:active {
   transform: scale(0.95);
 }
+
+/* =============================================================================
+   Music Editor
+   ============================================================================= */
+
+#panel-music {
+  max-width: 1400px;
+}
+
+/* ── Toolbar ────────────────────────────────────────────────────────────────── */
+
+.mus-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  margin-bottom: var(--space-md);
+}
+
+.mus-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.mus-toolbar-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.mus-select {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family);
+}
+
+.mus-select:focus {
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+.mus-bpm-input {
+  width: 60px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family);
+  text-align: center;
+}
+
+/* Hide spinner arrows from number input */
+.mus-bpm-input::-webkit-outer-spin-button,
+.mus-bpm-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.mus-bpm-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.mus-bpm-input:focus {
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+.mus-text-input {
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family);
+}
+
+.mus-text-input:focus {
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+/* ── Editor Layout (sidebar + piano roll) ─────────────────────────────── */
+
+.mus-editor-layout {
+  display: flex;
+  gap: 0;
+  height: 450px;
+  margin-bottom: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+/* ── Sidebar (voice panel) ────────────────────────────────────────────── */
+
+.mus-sidebar {
+  flex: 0 0 200px;
+  border-right: 1px solid var(--color-border);
+  padding: var(--space-md);
+  overflow-y: auto;
+  background: var(--color-bg-surface);
+}
+
+.mus-sidebar-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 var(--space-sm) 0;
+}
+
+.mus-voice-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+.mus-voice-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: var(--font-size-xs);
+}
+
+.mus-voice-item.active {
+  border-color: var(--color-primary);
+  background: rgba(139, 45, 180, 0.1);
+}
+
+.mus-voice-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.mus-voice-name {
+  flex: 1;
+  color: var(--color-text);
+}
+
+.mus-voice-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  padding: 2px 4px;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.mus-voice-btn:hover {
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mus-voice-btn.active {
+  color: var(--color-accent);
+}
+
+/* ── Settings ──────────────────────────────────────────────────────────── */
+
+/* ── Array Name Section ────────────────────────────────────────────────── */
+
+.mus-array-name-section {
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.mus-array-name-section .mus-setting-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Loop Section ──────────────────────────────────────────────────────── */
+
+.mus-loop-section {
+  margin-top: var(--space-sm);
+}
+
+/* ── Settings Accordion ────────────────────────────────────────────────── */
+
+.mus-settings-section {
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.mus-accordion-summary {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 2px 0;
+  user-select: none;
+}
+
+.mus-accordion-summary::-webkit-details-marker {
+  display: none;
+}
+
+.mus-accordion-summary::before {
+  content: '▶';
+  font-size: 8px;
+  color: var(--color-text-muted);
+  transition: transform 0.15s;
+  display: inline-block;
+}
+
+details[open] .mus-accordion-summary::before {
+  transform: rotate(90deg);
+}
+
+.mus-accordion-summary:hover {
+  color: var(--color-text-secondary);
+}
+
+.mus-settings-content {
+  margin-top: var(--space-xs);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+/* ── Controls help ─────────────────────────────────────────────────────── */
+
+.mus-controls-section {
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.mus-controls-summary {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 2px 0;
+  user-select: none;
+}
+
+.mus-controls-summary::-webkit-details-marker { display: none; }
+
+.mus-controls-summary::before {
+  content: '▶';
+  font-size: 8px;
+  color: var(--color-text-muted);
+  transition: transform 0.15s;
+  display: inline-block;
+}
+
+details[open] .mus-controls-summary::before {
+  transform: rotate(90deg);
+}
+
+.mus-controls-summary:hover { color: var(--color-text-secondary); }
+
+.mus-controls-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mus-controls-list li {
+  display: flex;
+  gap: var(--space-xs);
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--color-text-muted);
+}
+
+.mus-controls-list kbd {
+  display: inline-block;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mus-control-desc {
+  color: var(--color-text-muted);
+}
+
+.mus-setting-row {
+  margin-bottom: var(--space-sm);
+}
+
+.mus-setting-label {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-xs);
+}
+
+.mus-slider-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.mus-slider {
+  flex: 1;
+  accent-color: var(--color-primary);
+}
+
+.mus-slider-value {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  min-width: 24px;
+  text-align: right;
+}
+
+/* ── Piano Roll Container ─────────────────────────────────────────────── */
+
+.mus-pianoroll-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ── Transport ─────────────────────────────────────────────────────────── */
+
+.mus-transport {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  background: rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.mus-transport-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border);
+  margin: 0 var(--space-xs);
+}
+
+.mus-transport-spacer {
+  flex: 1;
+}
+
+.mus-playback-position {
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-sm);
+  color: var(--color-accent);
+  min-width: 80px;
+}
+
+.mus-zoom-slider {
+  width: 100px;
+  accent-color: var(--color-primary);
+}
+
+/* ── Edit mode toggle ───────────────────────────────────────────────────── */
+
+.mus-mode-group {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.mus-mode-btn {
+  padding: 3px 9px;
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0.5;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.mus-mode-btn:hover {
+  opacity: 0.85;
+  border-color: var(--color-border-strong, #555);
+}
+
+.mus-mode-btn.active {
+  opacity: 1;
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.mus-select-both-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ── Canvas ────────────────────────────────────────────────────────────── */
+
+.mus-pianoroll-canvas {
+  flex: 1;
+  width: 100%;
+  cursor: crosshair;
+}
+
+.mus-minimap-canvas {
+  width: 100%;
+  height: 52px;
+  flex-shrink: 0;
+  display: block;
+  cursor: pointer;
+}
+
+.mus-pianoroll-resize-handle {
+  height: 10px;
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 var(--space-md) 0;
+  background: transparent;
+  transition: background 0.15s;
+  position: relative;
+}
+
+.mus-pianoroll-resize-handle::before {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border);
+  transition: background 0.15s, width 0.15s;
+}
+
+.mus-pianoroll-resize-handle:hover::before,
+.mus-pianoroll-resize-handle.active::before {
+  background: var(--color-primary);
+  width: 72px;
+}
+
+/* ── Warnings ──────────────────────────────────────────────────────────── */
+
+.mus-warnings-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-warning);
+}
+
+.mus-warnings-list li {
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.mus-warnings-list li:last-child {
+  border-bottom: none;
+}
+
+/* ── MIDI Import Dialog ────────────────────────────────────────────────── */
+
+.mus-midi-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.mus-midi-dialog {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.mus-midi-dialog h3 {
+  margin: 0 0 var(--space-sm) 0;
+  font-size: var(--font-size-md);
+  color: var(--color-text);
+}
+
+.mus-midi-dialog p {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-md) 0;
+}
+
+.mus-midi-track-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-lg);
+}
+
+.mus-midi-track-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.mus-midi-track-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.mus-midi-track-row.selected {
+  border-color: var(--color-primary);
+  background: rgba(139, 45, 180, 0.1);
+}
+
+.mus-midi-track-info {
+  flex: 1;
+}
+
+.mus-midi-track-name {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.mus-midi-track-meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.mus-midi-dialog .button-row {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .mus-editor-layout {
+    flex-direction: column;
+    max-height: none;
+  }
+
+  .mus-sidebar {
+    flex: 0 0 auto;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+}

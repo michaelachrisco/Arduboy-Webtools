@@ -19,6 +19,7 @@ import { readFileAsArrayBuffer, readFileAsText, downloadBlob, wireFileInput } fr
 import { CartEditor } from './ui/cartEditor.js';
 import { PackageEditor } from './ui/packageEditor.js';
 import { ImageConverter } from './ui/imageConverter.js';
+import { MusicEditor } from './ui/musicEditor.js';
 
 // Core library
 import {
@@ -682,6 +683,8 @@ const DROP_ROUTES = {
   '.gif':     { tabs: ['image'], defaultTab: 'image' },
   '.bmp':     { tabs: ['image'], defaultTab: 'image' },
   '.webp':    { tabs: ['image'], defaultTab: 'image' },
+  '.mid':     { tabs: ['music'], defaultTab: 'music' },
+  '.midi':    { tabs: ['music'], defaultTab: 'music' },
 };
 
 const TAB_LABELS = {
@@ -691,12 +694,13 @@ const TAB_LABELS = {
   cart: 'Cart Editor',
   image: 'Image Converter',
   package: 'Package Editor',
+  music: 'Music Editor',
 };
 
 // Build full-page drop overlay
 const dropOverlay = document.createElement('div');
 dropOverlay.className = 'page-drop-overlay';
-const fileTypes = ['.hex', '.bin', '.arduboy', 'Image'];
+const fileTypes = ['.hex', '.bin', '.arduboy', '.mid', 'Image'];
 const fileTypesHTML = fileTypes.map(ext => `
   <div class="file-type-card">
     <svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg" class="file-svg">
@@ -805,6 +809,11 @@ async function handleDroppedFile(file, tab) {
       await imageConverter.loadFile(file);
       showToast(`Loaded: ${file.name}`, 'info');
       break;
+
+    case 'music':
+      await musicEditor.loadFile(file);
+      showToast(`Loaded: ${file.name}`, 'info');
+      break;
   }
 }
 
@@ -888,6 +897,12 @@ const packageEditor = new PackageEditor();
 // ---------------------------------------------------------------------------
 
 const imageConverter = new ImageConverter();
+
+// ---------------------------------------------------------------------------
+// Music Editor
+// ---------------------------------------------------------------------------
+
+const musicEditor = new MusicEditor();
 
 // ---------------------------------------------------------------------------
 // Init

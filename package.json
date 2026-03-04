@@ -13,15 +13,21 @@
     "format": "prettier --write src/ tests/"
   },
   "dependencies": {
+    "@tonejs/midi": "^2.0.28",
     "jszip": "^3.10.1"
   },
   "devDependencies": {
-    "vite": "^6.1.0",
-    "vitest": "^3.0.0",
     "eslint": "^9.0.0",
-    "prettier": "^3.4.0"
+    "prettier": "^3.4.0",
+    "vite": "^6.1.0",
+    "vitest": "^3.0.0"
   },
-  "keywords": ["arduboy", "web-serial", "flash", "gamedev"],
+  "keywords": [
+    "arduboy",
+    "web-serial",
+    "flash",
+    "gamedev"
+  ],
   "license": "MIT",
   "author": "Kevin Bates"
 }
