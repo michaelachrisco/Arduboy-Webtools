@@ -1318,15 +1318,50 @@ select:focus, input:focus {
   color: var(--color-text-secondary);
 }
 
+/* ── Mobile vertical resize handle (hidden by default, shown at <=900px) ──── */
+
+.cart-mobile-resize-handle {
+  display: none;
+  height: 10px;
+  cursor: row-resize;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.cart-mobile-resize-handle::before {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border);
+  transition: background 0.15s, width 0.15s;
+}
+
+.cart-mobile-resize-handle:hover::before,
+.cart-mobile-resize-handle.active::before {
+  background: var(--color-primary);
+  width: 72px;
+}
+
 /* ── Responsive ─────────────────────────────────────────────────────────────── */
 
 @media (max-width: 900px) {
   .cart-content {
     flex-direction: column;
+    max-height: none;
+    overflow: visible;
   }
 
   .cart-resize-handle {
     display: none;
+  }
+
+  .cart-slot-list-container {
+    flex: none;
   }
 
   .cart-detail-panel {
@@ -1335,7 +1370,12 @@ select:focus, input:focus {
   }
 
   .cart-slot-list {
-    max-height: 40vh;
+    max-height: 50vh;
+  }
+
+  /* Vertical resize handle shown in mobile view */
+  .cart-mobile-resize-handle {
+    display: flex;
   }
 
   .cart-detail-image-section {
@@ -1699,7 +1739,10 @@ select:focus, input:focus {
 
   .pkg-left-pane,
   .pkg-right-pane {
+    flex: 0 0 auto;
     max-height: none;
+    overflow-y: visible;
+    margin-bottom: var(--space-sm);
   }
 
   .pkg-resize-handle {
@@ -2191,6 +2234,14 @@ select:focus, input:focus {
 
 .icon-btn-copy:active {
   transform: scale(0.95);
+}
+
+/* ── Image settings grid responsive: collapse to 2 columns on narrow screens ─ */
+
+@media (max-width: 750px) {
+  .img-settings-grid {
+    grid-template-columns: max-content auto;
+  }
 }
 
 /* =============================================================================
@@ -2784,11 +2835,20 @@ details[open] .mus-controls-summary::before {
   .mus-editor-layout {
     flex-direction: column;
     max-height: none;
+    height: auto;
   }
 
   .mus-sidebar {
     flex: 0 0 auto;
     border-right: none;
     border-bottom: 1px solid var(--color-border);
+  }
+
+  /* Piano roll container gets its own explicit height in mobile so the sidebar
+     can expand/collapse freely without overflowing the canvas area */
+  .mus-pianoroll-container {
+    flex: 0 0 auto;
+    height: 400px;
+    overflow: hidden;
   }
 }

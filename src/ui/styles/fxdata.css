@@ -2075,6 +2075,35 @@ select.fxdata-entry-asset-select option {
   justify-content: center;
 }
 
+/* Mobile vertical resize handles (hidden by default, shown in media query below) */
+.fxdata-mobile-resize-handle {
+  display: none;
+  height: 10px;
+  width: 100%;
+  cursor: row-resize;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.fxdata-mobile-resize-handle::before {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border);
+  transition: background 0.15s, width 0.15s;
+}
+
+.fxdata-mobile-resize-handle:hover::before,
+.fxdata-mobile-resize-handle.active::before {
+  background: var(--color-primary);
+  width: 72px;
+}
+
 /* ---------------------------------------------------------------------------
    Responsive: stack layout on narrow screens
    --------------------------------------------------------------------------- */
@@ -2084,26 +2113,119 @@ select.fxdata-entry-asset-select option {
     flex-direction: column;
     height: auto;
     overflow: visible;
+    gap: 5px;
   }
 
-  .fxdata-resize-handle {
+  /* Hide the column resize handles (horizontal ones) */
+  .fxdata-editor-layout > .fxdata-resize-handle {
     display: none;
   }
 
+  /* Dissolve panels so their children become direct flex items for reordering */
   .fxdata-panel-left,
-  .fxdata-panel-center,
   .fxdata-panel-right {
-    flex: 0 0 auto;
-    width: 100% !important;
-    max-height: 400px;
+    display: contents;
   }
 
   .fxdata-panel-center {
+    flex: 0 0 auto;
+    width: 100% !important;
+    max-height: none;
     min-height: 300px;
+    order: 30;
   }
 
+  /* Download section at the very top */
+  .fxdata-download-container {
+    order: 1;
+    width: 100%;
+  }
+
+  /* FX Data entries section */
+  .fxdata-entries-section {
+    order: 10;
+    flex: 0 0 auto;
+    width: 100%;
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-surface);
+  }
+
+  /* The entries vertical resize handle within panel-left — show it for mobile */
+  .fxdata-panel-left > .fxdata-resize-handle.fxdata-resize-vertical {
+    display: flex;
+    order: 11;
+    width: 100%;
+    height: 10px;
+    flex: 0 0 10px;
+    margin: 0;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    cursor: row-resize;
+  }
+
+  .fxdata-panel-left > .fxdata-resize-handle.fxdata-resize-vertical::before {
+    content: '';
+    display: block;
+    width: 48px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--color-border);
+    transition: background 0.15s, width 0.15s;
+  }
+
+  .fxdata-panel-left > .fxdata-resize-handle.fxdata-resize-vertical:hover::before,
+  .fxdata-panel-left > .fxdata-resize-handle.fxdata-resize-vertical.dragging::before {
+    background: var(--color-primary);
+    width: 72px;
+  }
+
+  /* Assets section */
+  .fxdata-project-section {
+    order: 20;
+    flex: 0 0 auto;
+    width: 100%;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-surface);
+  }
+
+  /* Preview section */
   .fxdata-center-preview-section {
     flex: 1;
-    min-height: 200px;
+    min-height: 0;
+  }
+
+  /* fxdata-content-container: give it an explicit height so inner flex children
+     (tabbed section, source textarea) have a proper sizing context */
+  .fxdata-content-container {
+    order: 40;
+    flex: 0 0 auto;
+    height: 400px;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  /* Mobile vertical resize handles for sections */
+  .fxdata-mobile-resize-handle {
+    display: flex;
+  }
+
+  .fxdata-mobile-resize-handle[data-target="fxdata-project-section"] {
+    order: 22;
+  }
+
+  .fxdata-mobile-resize-handle[data-target="fxdata-preview-section"] {
+    order: 32;
+  }
+
+  .fxdata-mobile-resize-handle[data-target="fxdata-content-container"] {
+    order: 41;
   }
 }
+

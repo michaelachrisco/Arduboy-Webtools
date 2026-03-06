@@ -104,6 +104,7 @@ export class CartEditor {
     }
 
     this._bindResizeHandle();
+    this._bindMobileResizeHandle();
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -478,6 +479,67 @@ export class CartEditor {
       handle.classList.remove('active');
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+    });
+  }
+
+  /**
+   * Bind mouse drag on the mobile vertical resize handle (visible at <=900px).
+   * Adjusts the slot list max-height so users can see more or less of the list.
+   */
+  _bindMobileResizeHandle() {
+    const handle = document.getElementById('cart-mobile-resize-handle');
+    const slotList = document.querySelector('.cart-slot-list');
+    if (!handle || !slotList) return;
+
+    let dragging = false;
+    let startY = 0;
+    let startH = 0;
+
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      dragging = true;
+      startY = e.clientY;
+      startH = slotList.offsetHeight;
+      handle.classList.add('active');
+      document.body.style.cursor = 'row-resize';
+      document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const delta = e.clientY - startY;
+      const newH = Math.max(100, startH + delta);
+      slotList.style.maxHeight = `${newH}px`;
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      handle.classList.remove('active');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    });
+
+    // Touch support
+    handle.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      dragging = true;
+      startY = e.touches[0].clientY;
+      startH = slotList.offsetHeight;
+      handle.classList.add('active');
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!dragging) return;
+      const delta = e.touches[0].clientY - startY;
+      const newH = Math.max(100, startH + delta);
+      slotList.style.maxHeight = `${newH}px`;
+    });
+
+    document.addEventListener('touchend', () => {
+      if (!dragging) return;
+      dragging = false;
+      handle.classList.remove('active');
     });
   }
 

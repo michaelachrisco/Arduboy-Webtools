@@ -371,6 +371,8 @@ export class FxDataEditor {
     this._initColumnResize();
     this._initPreviewResize();
     this._initEntriesResize();
+    this._initMobileResizeHandles();
+    this._initLayoutSwitchReset();
     this._initAddRowStickyDetection();
     this._restoreFromStorage();
     // Ensure the add-row is always inside the entries list on first paint,
@@ -770,9 +772,16 @@ export class FxDataEditor {
       if (!resizeHandle.hasPointerCapture(e.pointerId)) return;
       const dy = e.clientY - startY;
       const newHeight = Math.max(60, startEntriesHeight + dy); // min 60px
-      // Pin entries to the new height; assets (flex:1) fills the rest
-      entriesSection.style.flex = `0 0 ${newHeight}px`;
-      entriesSection.style.minHeight = '60px';
+      const isMobile = window.matchMedia('(max-width: 900px)').matches;
+      if (isMobile) {
+        // In mobile layout, just set height/max-height directly
+        entriesSection.style.maxHeight = `${newHeight}px`;
+        entriesSection.style.height = `${newHeight}px`;
+      } else {
+        // Pin entries to the new height; assets (flex:1) fills the rest
+        entriesSection.style.flex = `0 0 ${newHeight}px`;
+        entriesSection.style.minHeight = '60px';
+      }
     });
 
     const stop = () => {
@@ -782,6 +791,86 @@ export class FxDataEditor {
     };
     resizeHandle.addEventListener('pointerup', stop);
     resizeHandle.addEventListener('lostpointercapture', stop);
+  }
+
+  /**
+   * Bind mobile vertical resize handles for assets and preview sections.
+   * These are only visible at <=900px and let the user drag to increase
+   * the height of each section independently.
+   */
+  _initMobileResizeHandles() {
+    const pairs = [
+      { handleId: 'fxdata-mobile-resize-assets', sectionSelector: '.fxdata-project-section' },
+      { handleId: 'fxdata-mobile-resize-preview', sectionId: 'fxdata-col-center' },
+      { handleId: 'fxdata-mobile-resize-content', sectionSelector: '.fxdata-content-container' },
+    ];
+
+    for (const { handleId, sectionSelector, sectionId } of pairs) {
+      const handle = document.getElementById(handleId);
+      const section = sectionId
+        ? document.getElementById(sectionId)
+        : document.querySelector(sectionSelector);
+      if (!handle || !section) continue;
+
+      let startY = 0;
+      let startH = 0;
+
+      handle.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        startY = e.clientY;
+        startH = section.offsetHeight;
+        handle.setPointerCapture(e.pointerId);
+        handle.classList.add('active');
+        document.body.style.cursor = 'row-resize';
+        document.body.style.userSelect = 'none';
+      });
+
+      handle.addEventListener('pointermove', (e) => {
+        if (!handle.hasPointerCapture(e.pointerId)) return;
+        const delta = e.clientY - startY;
+        const newH = Math.max(100, startH + delta);
+        section.style.maxHeight = `${newH}px`;
+        section.style.height = `${newH}px`;
+      });
+
+      const stop = () => {
+        handle.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+      handle.addEventListener('pointerup', stop);
+      handle.addEventListener('lostpointercapture', stop);
+    }
+  }
+
+  /**
+   * When the viewport crosses the 900px breakpoint, clear all inline resize
+   * styles so the desktop and mobile layouts stay independent.
+   */
+  _initLayoutSwitchReset() {
+    const mq = window.matchMedia('(max-width: 900px)');
+    mq.addEventListener('change', () => {
+      // Elements that get inline styles from desktop column / entries resize
+      const colLeft = document.getElementById('fxdata-col-left');
+      const colRight = document.getElementById('fxdata-col-right');
+      const entries = document.querySelector('.fxdata-entries-section');
+      // Elements that get inline styles from mobile section resize
+      const project = document.querySelector('.fxdata-project-section');
+      const panelCenter = document.getElementById('fxdata-col-center');
+      const contentContainer = document.querySelector('.fxdata-content-container');
+
+      const clearProps = (el, props) => {
+        if (!el) return;
+        for (const p of props) el.style.removeProperty(p);
+      };
+
+      clearProps(colLeft, ['flex', 'width']);
+      clearProps(colRight, ['flex', 'width']);
+      clearProps(entries, ['flex', 'min-height', 'height', 'max-height']);
+      clearProps(project, ['height', 'max-height']);
+      clearProps(panelCenter, ['height', 'max-height']);
+      clearProps(contentContainer, ['height', 'max-height']);
+    });
   }
 
   // ---------------------------------------------------------------------------

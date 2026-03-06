@@ -250,16 +250,20 @@ export class MusicEditor {
       this._scrollY = Math.max(0, Math.min(this._scrollY, maxScrollY));
     }
 
-    // Clamp layout height if it exceeds the new content max
+    // Clamp the resized element's height if it now exceeds the content max.
+    // In mobile the pianoroll container is resized independently; in desktop
+    // the whole layout is resized.
     const layout = document.getElementById('mus-editor-layout');
     if (layout && this._container) {
       const transport = this._container.querySelector('.mus-transport');
       const transportH = transport?.offsetHeight || 36;
       const totalNoteRows = this._displayMaxNote - this._displayMinNote;
       const maxContentH = totalNoteRows * NOTE_HEIGHT + transportH + MINIMAP_H;
-      const currentH = layout.getBoundingClientRect().height;
+      const isMobile = window.matchMedia('(max-width: 900px)').matches;
+      const target = isMobile ? this._container : layout;
+      const currentH = target.getBoundingClientRect().height;
       if (currentH > maxContentH) {
-        layout.style.height = `${maxContentH}px`;
+        target.style.height = `${maxContentH}px`;
         this._resizeCanvas();
       }
     }
@@ -307,7 +311,7 @@ export class MusicEditor {
   _bindResizeHandle() {
     const handle = document.getElementById('mus-pianoroll-resize-handle');
     const layout = document.getElementById('mus-editor-layout');
-    if (!handle || !layout) return;
+    if (!handle || !layout || !this._container) return;
 
     let dragging = false;
 
@@ -321,30 +325,32 @@ export class MusicEditor {
 
     document.addEventListener('mousemove', (e) => {
       if (!dragging) return;
-      const rect = layout.getBoundingClientRect();
+
+      // In mobile the layout height is auto; resize only the pianoroll container.
+      // In desktop the layout has an explicit height; resize that instead.
+      const isMobile = window.matchMedia('(max-width: 900px)').matches;
+      const target = isMobile ? this._container : layout;
+      const rect = target.getBoundingClientRect();
       const newHeight = e.clientY - rect.top;
 
       // Calculate transport bar height
-      const transport = this._container?.querySelector('.mus-transport');
+      const transport = this._container.querySelector('.mus-transport');
       const transportH = transport?.offsetHeight || 36;
 
-      // Sidebar width is irrelevant to vertical content height
       const totalNoteRows = this._displayMaxNote - this._displayMinNote;
       const maxContentH = totalNoteRows * NOTE_HEIGHT + transportH + MINIMAP_H;
       const minH = 200 + MINIMAP_H;
       const clamped = Math.max(minH, Math.min(newHeight, maxContentH));
 
-      // Calculate the available canvas height at this size (subtract minimap)
-      const canvasH = clamped - transportH - MINIMAP_H;
-
       // Auto-scroll: if expanding downward and content would show blank space
       // below the last row, pull scrollY back so bottom row stays at bottom
+      const canvasH = clamped - transportH - MINIMAP_H;
       const maxScrollY = Math.max(0, totalNoteRows * NOTE_HEIGHT - canvasH);
       if (this._scrollY > maxScrollY) {
         this._scrollY = maxScrollY;
       }
 
-      layout.style.height = `${clamped}px`;
+      target.style.height = `${clamped}px`;
       this._resizeCanvas();
     });
 
@@ -354,6 +360,15 @@ export class MusicEditor {
       handle.classList.remove('active');
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+    });
+
+    // Clear inline heights when crossing the 900px responsive breakpoint so
+    // desktop and mobile layouts stay independent of each other.
+    const mq = window.matchMedia('(max-width: 900px)');
+    mq.addEventListener('change', () => {
+      layout.style.removeProperty('height');
+      this._container.style.removeProperty('height');
+      this._resizeCanvas();
     });
   }
 
