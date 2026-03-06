@@ -39,6 +39,7 @@ export class PackageEditor {
     this._addBinary(); // Start with one empty binary
     this._renderBinaryList();
     this._renderBinaryDetail();
+    this._updateContributorsVisibility();
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -165,6 +166,7 @@ export class PackageEditor {
     // Clear contributors
     const tbody = document.querySelector('#pkg-contributors-table tbody');
     if (tbody) tbody.innerHTML = '';
+    this._updateContributorsVisibility();
 
     // Reset binaries
     this._binaries = [];
@@ -201,6 +203,7 @@ export class PackageEditor {
     (pkg.contributors || []).forEach((c) => {
       this._addContributorRow(c.name, (c.roles || []).join(', '), (c.urls || []).join(', '));
     });
+    this._updateContributorsVisibility();
 
     // Binaries
     this._binaries = [];
@@ -317,6 +320,7 @@ export class PackageEditor {
       <td><input type="text" class="pkg-contrib-input" value="${this._escAttr(roles)}" placeholder="Code, Art, Sound..."></td>
       <td><input type="text" class="pkg-contrib-input" value="${this._escAttr(urls)}" placeholder="https://..."></td>`;
     tbody.appendChild(row);
+    this._updateContributorsVisibility();
   }
 
   _removeContributorRow() {
@@ -324,6 +328,16 @@ export class PackageEditor {
     if (!tbody) return;
     const lastRow = tbody.querySelector('tr:last-child');
     if (lastRow) lastRow.remove();
+    this._updateContributorsVisibility();
+  }
+
+  _updateContributorsVisibility() {
+    const wrap = document.querySelector('.pkg-contributors-wrap');
+    const tbody = document.querySelector('#pkg-contributors-table tbody');
+    if (!wrap || !tbody) return;
+    
+    const hasRows = tbody.querySelectorAll('tr').length > 0;
+    wrap.classList.toggle('hidden', !hasRows);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

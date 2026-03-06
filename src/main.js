@@ -52,17 +52,7 @@ import {
 // Feature detect
 // ---------------------------------------------------------------------------
 
-if (!('serial' in navigator)) {
-  document.getElementById('panels').innerHTML = `
-    <div class="panel active" style="text-align:center; padding: 4rem 2rem;">
-      <h2>Browser Not Supported</h2>
-      <p class="panel-description">
-        This application requires the <strong>Web Serial API</strong>.<br>
-        Please use <a href="https://www.google.com/chrome/">Google Chrome</a> or
-        <a href="https://www.microsoft.com/edge">Microsoft Edge</a> (desktop) version 89+.
-      </p>
-    </div>`;
-}
+const webSerialSupported = 'serial' in navigator;
 
 // ---------------------------------------------------------------------------
 // DOM references
@@ -84,6 +74,12 @@ const tabs = new TabController(
 );
 // Activate saved tab or default
 tabs.activate(localStorage.getItem('activeMainTab') || 'sketch');
+
+if (!webSerialSupported) {
+  showToast('Use Chrome or Edge desktop for full functionality.', 'warning', 8000);
+  showToast('Device features (upload, backup, etc.) are unavailable.', 'warning', 8000);
+  showToast('Your browser does not support Web Serial', 'warning', 8000);
+}
 
 // ---------------------------------------------------------------------------
 // Progress Controller
@@ -119,6 +115,10 @@ function setConnectionStatus(state, text) {
 let transport = null;
 
 async function connectDevice() {
+  if (!webSerialSupported) {
+    showToast('Web Serial is not supported in this browser. Use Chrome or Edge desktop.', 'warning');
+    return null;
+  }
   try {
     setConnectionStatus('connecting', 'Connecting...');
     const port = await navigator.serial.requestPort({ filters: USB_FILTERS });
