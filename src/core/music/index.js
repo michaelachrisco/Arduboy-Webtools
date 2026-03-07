@@ -6,6 +6,7 @@ export {
   createSong,
   createNote,
   nextNoteId,
+  advanceNoteIdCounter,
   tickToMs,
   msToTick,
   getSongEndTick,

@@ -639,7 +639,7 @@ async function handleEepromBackup() {
     progress.show('Backing Up EEPROM');
     const data = await readEeprom(proto, { onProgress: (frac) => progress.update(frac * 100, 'Reading EEPROM...') });
     progress.hide();
-    downloadBlob(data, 'arduboy-eeprom-backup.bin');
+    downloadBlob(data, 'arduboy-eeprom-backup.eep');
     showToast('EEPROM backed up', 'success');
   } catch (err) {
     progress.hide();

@@ -12,6 +12,11 @@ export function nextNoteId() {
   return ++_noteIdCounter;
 }
 
+/** Advance the counter so it's at least `minValue`. Used after restoring persisted notes. */
+export function advanceNoteIdCounter(minValue) {
+  if (minValue > _noteIdCounter) _noteIdCounter = minValue;
+}
+
 /**
  * Create a new empty song.
  * @param {Object} [opts]

@@ -15,9 +15,11 @@ import {
   parseMidiFile, midiToSong,
   midiNoteToFreq, midiNoteToName, isBlackKey,
   exportArduboyTones, exportArduboyPlaytune,
+  advanceNoteIdCounter,
 } from '../core/music/index.js';
 import { readFileAsArrayBuffer, downloadBlob } from './files.js';
 import { showToast } from './toast.js';
+import { showConfirm } from './modal.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -82,6 +84,7 @@ export class MusicEditor {
     this._updateDisplayRange();  // Initialize display range
     this._grabRefs();
     this._bindEvents();
+    this._loadState();   // Restore persisted song + settings (overwrites defaults if found)
     this._renderVoiceList();
     this._resizeCanvas();
     this._render();
@@ -374,7 +377,15 @@ export class MusicEditor {
 
   // ─── Song operations ─────────────────────────────────────────────────
 
-  _newSong() {
+  _hasSongContent() {
+    return this._song?.tracks?.some(t => t.notes.length > 0) ?? false;
+  }
+
+  async _newSong() {
+    if (this._hasSongContent()) {
+      const ok = await showConfirm('This will discard the current song. Continue?');
+      if (!ok) return;
+    }
     this._stop();
     const target = this._targetSelect?.value || 'tones';
     const tracks = [{ id: 'voice0', name: 'Voice 1', notes: [] }];
@@ -2123,6 +2134,11 @@ export class MusicEditor {
         return;
       }
 
+      if (this._hasSongContent()) {
+        const ok = await showConfirm(`Import "${file.name}" and discard the current song?`);
+        if (!ok) return;
+      }
+
       // Auto-switch to Playtune if more than 1 track is detected
       let target = this._targetSelect?.value || 'tones';
       if (summary.length > 1) {
@@ -2330,6 +2346,8 @@ export class MusicEditor {
     } else {
       this._warningsGroup?.classList.add('hidden');
     }
+
+    this._saveState();
   }
 
   async _copyCode() {
@@ -2404,6 +2422,68 @@ export class MusicEditor {
 
   // ─── Public API (for main.js drag-and-drop) ──────────────────────────
 
+  // ─── Persistence ─────────────────────────────────────────────────────
+
+  static get _STORAGE_KEY() { return 'arduboy-music-state'; }
+
+  _saveState() {
+    try {
+      const state = {
+        song: this._song,
+        target: this._targetSelect?.value,
+        arrayName: this._arrayNameInput?.value,
+        velocityThreshold: this._velocityThreshold?.value,
+        useConstants: this._useConstants?.checked,
+        showFullRange: this._showFullRange,
+      };
+      localStorage.setItem(MusicEditor._STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      // localStorage unavailable or quota exceeded — silently skip
+    }
+  }
+
+  _loadState() {
+    try {
+      const raw = localStorage.getItem(MusicEditor._STORAGE_KEY);
+      if (!raw) return false;
+      const state = JSON.parse(raw);
+      if (!state?.song?.tracks) return false;
+
+      this._song = state.song;
+
+      // Advance the note ID counter past any restored IDs to prevent collisions
+      let maxId = 0;
+      for (const track of this._song.tracks) {
+        for (const note of track.notes) {
+          if (note.id > maxId) maxId = note.id;
+        }
+      }
+      advanceNoteIdCounter(maxId);
+
+      // Restore UI inputs
+      if (this._targetSelect && state.target) this._targetSelect.value = state.target;
+      if (this._arrayNameInput && state.arrayName != null) this._arrayNameInput.value = state.arrayName;
+      if (this._velocityThreshold && state.velocityThreshold != null) {
+        this._velocityThreshold.value = state.velocityThreshold;
+        if (this._velocityThresholdValue) this._velocityThresholdValue.textContent = state.velocityThreshold;
+      }
+      if (this._useConstants && state.useConstants != null) this._useConstants.checked = state.useConstants;
+      if (this._loopCheckbox && this._song.loopEnabled != null) this._loopCheckbox.checked = this._song.loopEnabled;
+      if (this._bpmInput) this._bpmInput.value = this._song.tempoMap?.[0]?.bpm ?? 120;
+
+      if (state.showFullRange != null) {
+        this._showFullRange = state.showFullRange;
+        const cb = $('#mus-show-full-range');
+        if (cb) cb.checked = state.showFullRange;
+        this._updateDisplayRange();
+      }
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async loadFile(file) {
     // Simulate MIDI import
     try {
@@ -2417,6 +2497,11 @@ export class MusicEditor {
 
       const target = this._targetSelect?.value || 'tones';
       const maxSelectable = target === 'tones' ? 1 : 2;
+
+      if (this._hasSongContent()) {
+        const ok = await showConfirm(`Import "${file.name}" and discard the current song?`);
+        if (!ok) return;
+      }
 
       const selected = await this._showMidiTrackDialog(summary, maxSelectable);
       if (!selected || selected.length === 0) return;
