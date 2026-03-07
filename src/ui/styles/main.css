@@ -122,6 +122,13 @@ body::after {
 
 .brand-icon {
   font-size: 1.5rem;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.15s ease;
+}
+
+.brand-icon:active {
+  transform: scale(1.25) rotate(-15deg);
 }
 
 .navbar-tabs {

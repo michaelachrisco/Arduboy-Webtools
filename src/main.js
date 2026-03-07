@@ -62,6 +62,50 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
 // ---------------------------------------------------------------------------
+// Easter egg — brand icon shuffles the background gradient
+// ---------------------------------------------------------------------------
+
+(function wireBrandIconEasterEgg() {
+  // Original colour palette: same hues/saturations/lightness/alphas as the CSS,
+  // just re-distributed randomly on each click.
+  const palette = [
+    { h: 265, s: 70, l: 60, a: 0.55 },
+    { h: 175, s: 75, l: 45, a: 0.50 },
+    { h: 230, s: 60, l: 50, a: 0.45 },
+    { h: 280, s: 65, l: 55, a: 0.45 },
+    { h: 190, s: 70, l: 45, a: 0.40 },
+    { h: 250, s: 65, l: 55, a: 0.45 },
+    { h: 270, s: 75, l: 60, a: 0.50 },
+  ];
+
+  function randomizeBg() {
+    // Fisher-Yates shuffle of a copy so we don't mutate the palette
+    const colors = palette.slice();
+    for (let i = colors.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [colors[i], colors[j]] = [colors[j], colors[i]];
+    }
+
+    const gradients = colors.map(({ h, s, l, a }) => {
+      const x = Math.round(Math.random() * 100);
+      const y = Math.round(Math.random() * 100);
+      const spread = Math.round(40 + Math.random() * 20); // 40–60 %
+      return `radial-gradient(at ${x}% ${y}%, hsla(${h}, ${s}%, ${l}%, ${a}) 0px, transparent ${spread}%)`;
+    });
+
+    let tag = document.getElementById('bg-easter-egg-style');
+    if (!tag) {
+      tag = document.createElement('style');
+      tag.id = 'bg-easter-egg-style';
+      document.head.appendChild(tag);
+    }
+    tag.textContent = `body::before { background-image: ${gradients.join(',\n')}; }`;
+  }
+
+  document.querySelector('.brand-icon')?.addEventListener('click', randomizeBg);
+})();
+
+// ---------------------------------------------------------------------------
 // Tab Controller
 // ---------------------------------------------------------------------------
 
