@@ -180,12 +180,12 @@ void playMusicButtonExample() {
   }
   
   if (arduboy.pressed(B_BUTTON)) {
-    sound.stopScore();
+    sound.noTone();
     isPlaying = false;
   }
   
   // Check if music finished playing
-  if (!sound.isPlaying()) {
+  if (!sound.playing()) {
     isPlaying = false;
   }
 }`;
