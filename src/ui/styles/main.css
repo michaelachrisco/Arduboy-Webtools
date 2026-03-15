@@ -260,6 +260,7 @@ body::after {
 /* Show the correct panel before the JS module activates tabs.
    The inline <head> script stamps data-tab on <html> synchronously,
    so on first paint the right panel is already visible. */
+html[data-tab="code"]    #panel-code,
 html[data-tab="sketch"]  #panel-sketch,
 html[data-tab="fx"]      #panel-fx,
 html[data-tab="eeprom"]  #panel-eeprom,

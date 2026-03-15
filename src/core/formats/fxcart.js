@@ -18,6 +18,7 @@ import {
   countUnusedPages, isEmpty, concat, sha256, arraysEqual,
   encodeString, decodeString, filledArray,
 } from '../utils/binary.js';
+import { patchMenuButtons } from '../operations/patch.js';
 
 // =============================================================================
 // Data Structures
@@ -304,6 +305,11 @@ async function compileSingleSlot(slot, currentPage, previousPage) {
   const savePages = save.length / FX_PAGESIZE;
   const totalPages = headerPages + imagePages + programPages + dataPages +
     (save.length > 0 ? (savePage - dataPage - dataPages) + savePages : 0);
+
+  // Apply menu button patch (Timer0 ISR replacement)
+  if (program.length > 0) {
+    patchMenuButtons(program);
+  }
 
   // Patch FX data/save page addresses into program
   if (program.length > 0 && (data.length > 0 || save.length > 0)) {
